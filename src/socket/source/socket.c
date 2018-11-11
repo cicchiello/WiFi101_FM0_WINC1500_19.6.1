@@ -114,136 +114,6 @@ volatile tpfAppResolveCb		gpfAppResolveCb;
 volatile uint8					gbSocketInit = 0;
 volatile tpfPingCb				gfpPingCb;
 
-//extern uint8 hif_small_xfer;
-//static uint32 u32Address;
-//static SOCKET sock_xfer;
-//static uint8 type_xfer;
-//static tstrSocketRecvMsg msg_xfer;
-
-/*********************************************************************
-Function
-		Socket_ReadSocketData
-
-Description
-		Callback function used by the NMC1500 driver to deliver messages
-		for socket layer.
-
-Return
-		None.
-
-Author
-		Ahmed Ezzat
-
-Version
-		1.0
-
-Date
-		17 July 2012
-*********************************************************************/
-#ifndef ARDUINO
-NMI_API void Socket_ReadSocketData(SOCKET sock, tstrSocketRecvMsg *pstrRecv,uint8 u8SocketMsg,
-								  uint32 u32StartAddress,uint16 u16ReadCount)
-{
-	if((u16ReadCount > 0) && (gastrSockets[sock].pu8UserBuffer != NULL) && (gastrSockets[sock].u16UserBufferSize > 0) && (gastrSockets[sock].bIsUsed == 1))
-	{
-		uint32	u32Address = u32StartAddress;
-		uint16	u16Read;
-		sint16	s16Diff;
-		uint8	u8SetRxDone;
-		pstrRecv->u16RemainingSize = u16ReadCount;
-		do
-		{
-			u8SetRxDone = 1;
-			u16Read = u16ReadCount;
-			s16Diff	= u16Read - gastrSockets[sock].u16UserBufferSize;
-			if(s16Diff > 0)
-			{
-				u8SetRxDone = 0;
-				u16Read		= gastrSockets[sock].u16UserBufferSize;
-			}
-			
-			if(hif_receive(u32Address, gastrSockets[sock].pu8UserBuffer, u16Read, u8SetRxDone) == M2M_SUCCESS)
-			{
-				pstrRecv->pu8Buffer			= gastrSockets[sock].pu8UserBuffer;
-				pstrRecv->s16BufferSize		= u16Read;
-				pstrRecv->u16RemainingSize	-= u16Read;
-
-				if (gpfAppSocketCb)
-					gpfAppSocketCb(sock,u8SocketMsg, pstrRecv);
-
-				u16ReadCount -= u16Read;
-				u32Address += u16Read;
-
-				if((!gastrSockets[sock].bIsUsed) && (u16ReadCount))
-				{
-					M2M_DBG("Application Closed Socket While Rx Is not Complete\n");
-					if(hif_receive(0, NULL, 0, 1) == M2M_SUCCESS)
-						M2M_DBG("hif_receive Success\n");
-					else
-						M2M_DBG("hif_receive Fail\n");
-					break;
-				}
-			}
-			else
-			{
-				M2M_INFO("(ERRR)Current <%d>\n", u16ReadCount);
-				break;
-			}
-		}while(u16ReadCount != 0);
-	}
-}
-NMI_API void Socket_ReadSocketData_Small(void)
-{
-	if((msg_xfer.u16RemainingSize > 0) && (gastrSockets[sock_xfer].pu8UserBuffer != NULL) && (gastrSockets[sock_xfer].u16UserBufferSize > 0) && (gastrSockets[sock_xfer].bIsUsed == 1))
-	{
-		uint16	u16Read;
-		sint16	s16Diff;
-		uint8	u8SetRxDone;
-
-		//do
-		//{
-			u8SetRxDone = 1;
-			u16Read = msg_xfer.u16RemainingSize;
-			s16Diff	= u16Read - gastrSockets[sock_xfer].u16UserBufferSize;
-			if(s16Diff > 0)
-			{
-				/*Has to be subsequent transfer*/
-				hif_small_xfer = 2;
-				u8SetRxDone = 0;
-				u16Read		= gastrSockets[sock_xfer].u16UserBufferSize;
-			}
-			else
-			{
-				/*Last xfer, needed for UDP*/
-				hif_small_xfer = 3;
-			}
-			if(hif_receive(u32Address, gastrSockets[sock_xfer].pu8UserBuffer, u16Read, u8SetRxDone) == M2M_SUCCESS)
-			{
-				msg_xfer.pu8Buffer			= gastrSockets[sock_xfer].pu8UserBuffer;
-				msg_xfer.s16BufferSize		= u16Read;
-				msg_xfer.u16RemainingSize	-= u16Read;
-
-				if (gpfAppSocketCb)
-					gpfAppSocketCb(sock_xfer,type_xfer, &msg_xfer);
-
-				u32Address += u16Read;
-			}
-			else
-			{
-				M2M_INFO("(ERRR)Current <%d>\n", u16ReadCount);
-				//break;
-			}
-			
-			if (hif_small_xfer == 3)
-			{
-				hif_small_xfer = 0;
-				hif_chip_sleep();
-			}
-			
-		//}while(u16ReadCount != 0);
-	}
-}
-#endif
 /*********************************************************************
 Function
 		m2m_ip_cb
@@ -834,9 +704,6 @@ Date
 *********************************************************************/
 sint16 send(SOCKET sock, void *pvSendBuffer, uint16 u16SendLength, uint16 flags)
 {
-#ifdef ARDUINO
-	(void)flags; // Silence "unused" warning
-#endif
 	sint16	s16Ret = SOCK_ERR_INVALID_ARG;
 	
 	if((sock >= 0) && (pvSendBuffer != NULL) && (u16SendLength <= SOCKET_BUFFER_MAX_LENGTH) && (gastrSockets[sock].bIsUsed == 1))
@@ -897,11 +764,6 @@ Date
 *********************************************************************/
 sint16 sendto(SOCKET sock, void *pvSendBuffer, uint16 u16SendLength, uint16 flags, struct sockaddr *pstrDestAddr, uint8 u8AddrLen)
 {
-#ifdef ARDUINO
-	// Silence "unused" warning
-	(void)flags;
-	(void)u8AddrLen;
-#endif
 	sint16	s16Ret = SOCK_ERR_INVALID_ARG;
 	
 	if((sock >= 0) && (pvSendBuffer != NULL) && (u16SendLength <= SOCKET_BUFFER_MAX_LENGTH) && (gastrSockets[sock].bIsUsed == 1))

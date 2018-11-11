@@ -53,9 +53,6 @@ FUNCTION PROTOTYPES
 
 NMI_API void Socket_ReadSocketData(SOCKET sock, tstrSocketRecvMsg *pstrRecv,uint8 u8SocketMsg,
 								uint32 u32StartAddress,uint16 u16ReadCount);
-#ifdef ARDUINO
-NMI_API void Socket_ReadSocketData_Small(void);
-#endif
 
 #ifdef  __cplusplus
 }

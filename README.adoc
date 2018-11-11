@@ -1,22 +1,75 @@
 = Customized WiFi library for the Adafruit Feather M0+ WINC1500 =
 
-Intent: upgrade the WINC1500 (B) from 19.5.2 to 19.6.1, and customize the WiFi101 library to provide access to the newly supported WPA2 Enterprise EAP authentication functionality.
+GOAL: upgrade the *ATWINC1500* (B version) from firmware version *19.4.4* to *19.6.1*, and customize the *WiFi101* library to expose the newly supported *WPA2 Enterprise EAP* (several flavors) authentication functionality.
 
-No extra hardware required (just PC laptop and Feather M0+ WINC1500)
+HARDWARE: *No* extra hardware was required (just laptop, Feather M0+ WINC1500footnote:[Adafruit https://www.adafruit.com/product/3010[Feather M0+ WiFi with ATWINC1500]], and USB cable)
 
-Adafruit_WINC1500 (~2yrs old) == Ada
-WiFi101 0.15.2 == WiFi
-Microchip(Atmel)'s drivers 
+SOFTWARE: Arduino IDE (I'm using *1.6.9*, newer should certainly also work)
+
+The firmware binary is taken directly from Microchip's Atmel Studio 7's *ASF package 3.42.0.1279* footnote:[ATWINC15x0 firmware http://ww1.microchip.com/downloads/en/DeviceDoc/ATWINC15x0%20Software%20Release%20Notes_9%20Aug%202018.pdf[release note]] footnote:[ASF 3.42.0.1279 https://gallery.microchip.com/packages/4CE20911-D794-4550-8B94-6C66A93228B8/3.42.0.1279[download page]]
+
+The WiFi101 modifications are derived/ported, in an indirect lineage, from the following sources:
+
+<1> Adafruit_WINC1500 0.9.1footnote:[Adafruit's original WiFi101 ATWINC1500 variant https://github.com/adafruit/Adafruit_WINC1500[github repo]] (with some local customizations)
+<2> WiFi101 0.15.2 footnote:[Arduino's WiFi101 https://github.com/arduino-libraries/WiFi101[github repo]]
+<3> Microchip's Atmel Studio 7's ADF package 3.42.0.1279 (same as for the firmware)
+
+https://github.com/arduino-libraries/WiFi101-FirmwareUpdater-Plugin
+
+== Firmware Upgrade ==
+
+The first challenge was to upgrade the *ATWINC1500*'s firmware.  In order to do this with the tools I had at hand, it meant using the Arduino WiFi101 Firmware Upgrade tools.  
+
+It looked like all that should be necessary is to use the standard WiFi101 FirmwareUpdater example sketch and the Arduino IDE FirmwareUpdater pluginfootnote:[IDE FirmwareUpdater plugin  https://github.com/arduino-libraries/WiFi101-FirmwareUpdater-Plugin[github repo]] to upload the Microchip firmware binaryfootnote:[named m2m_aio_3a0.bin, found deep in the ASF distro under a 19.6.1 directory].  
+
+WARNING: Interestingly, the FirmwareUpdater-plugin repo contains a 19.6.1 directory with a firmware  binary.  I didn't try to confirm that they are identical, though they quite likely are.  I just used the Microchip binary.
+
+To start, I first uploaded the CheckWiFi101FirmwareVersion sketch, and confirmed my device was indeed 19.4.4 and my Arduino library was expecting 19.4.4.  So, first thing to do was find the #define that declares the required firmware version and change that to 19.6.1.
+
+[source,c]
+----
+// in Adafruit_WINC1500.h
+#define WIFI_FIRMWARE_REQUIRED "19.6.1"
+----
+
+A quick check with CheckWiFi101FirmwareVersion confirms that took.  Now, on to the WiFi101 Firmware Updater plugin on the IDE's Tools menu.
+
+Unfortunately, I discovered that the plugin doesn't properly recognize my particular hardware, so it wouldn't offer an upgrade to 19.6.1, even after ensuring that it had a properly arranged 19.6.1 subdirectory.  In fact, it didn't offer any of the intermediate upgrades available, either.  Since it didn't recognize my hardware, it just defaulted to offering 19.4.4.  To get past this without modifying the plugin itself, I simply placed the appropriate binary (19.6.1's m2m_aio_3a0.bin) in the 19.4.4 subdirectory, and uploaded that.  A quick check with the CheckWiFi101FirmwareVersion sketch confirmed success!
+
+The Arduino library work started with the Adafruit_WINC1500 library, as I had working code based on it.  I proceeded to replace the several Atmel-derived driver directories with the same set of directories from the ASF package.
 
 
-== References ==
+== Characterizing Changes ===
 
-http://ww1.microchip.com/downloads/en/DeviceDoc/ATWINC15x0%20Software%20Release%20Notes_9%20Aug%202018.pdf
+Most files are identical to either the analogous WiFi101 0.15.2 file, or the Microchip 16.9.1 driver file.  Most of the places where there is some divergence involves earlier customizations of the WiFi101 driver files for the Android environment.  Most of those customizations have been ported forward to the same 16.9.1 files.
+
+Files changed a lot (perhaps more than necessary?): 
+
+* src/driver/source/m2m_hif.c
+* src/driver/source/m2m_wifi.c
+* src/socket/source/socket.c
+* src/spi_flash/source/spi_flash.c
+
+== Testing ==
+
+WARNING: Relatively little testing has been done, so far!
+
+The following Arduino sketches have been confirmed to work with these changes:
+
+* FirmwareUpdater
+* CheckWifi101FirmwareVersion
+* ConnectWithWPA
+* ConnectWithWPA2Enterprise (new; derived from ConnectWithWPA)
+* WiFiWebClient
+* WiFiSSLClient
 
 
 == Licenses ==
 
-Copyright (c) Arduino LLC. All right reserved.
+All source material has license information in the relevant references.  All modifications I've made are licensed under the GNU Lesser General Public License.
+
+
+Copyright (c) 2018 JFC Enterprises LLC. All right reserved.
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public

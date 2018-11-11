@@ -80,7 +80,7 @@ int WiFiClient::connect(IPAddress ip, uint16_t port, uint8_t opt, const uint8_t 
 		return 0;
 	}
 
-	if ((opt & SOCKET_FLAGS_SSL) && hostname) {
+	if (opt & SOCKET_FLAGS_SSL && hostname) {
 		WiFiSocket.setopt(_socket, SOL_SSL_SOCKET, SO_SSL_SNI, hostname, m2m_strlen((uint8_t *)hostname));
 	}
 
@@ -119,7 +119,7 @@ size_t WiFiClient::write(const uint8_t *buf, size_t size)
 int WiFiClient::available()
 {
 	if (_socket == -1) {
-	  return 0;
+		return 0;
 	}
 
 	return WiFiSocket.available(_socket);
