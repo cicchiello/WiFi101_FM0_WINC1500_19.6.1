@@ -4,36 +4,29 @@
  *
  * \brief This module contains NMC1500 ASIC specific internal APIs.
  *
- * Copyright (c) 2016-2017 Atmel Corporation. All rights reserved.
+ * Copyright (c) 2016-2018 Microchip Technology Inc. and its subsidiaries.
  *
  * \asf_license_start
  *
  * \page License
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Subject to your compliance with these terms, you may use Microchip
+ * software and any derivatives exclusively with Microchip products.
+ * It is your responsibility to comply with third party license terms applicable
+ * to your use of third party software (including open source software) that
+ * may accompany Microchip software.
  *
- * 1. Redistributions of source code must retain the above copyright notice,
- *    this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * 3. The name of Atmel may not be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY ATMEL "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT ARE
- * EXPRESSLY AND SPECIFICALLY DISCLAIMED. IN NO EVENT SHALL ATMEL BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS SUPPLIED BY MICROCHIP "AS IS". NO WARRANTIES,
+ * WHETHER EXPRESS, IMPLIED OR STATUTORY, APPLY TO THIS SOFTWARE,
+ * INCLUDING ANY IMPLIED WARRANTIES OF NON-INFRINGEMENT, MERCHANTABILITY,
+ * AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT WILL MICROCHIP BE
+ * LIABLE FOR ANY INDIRECT, SPECIAL, PUNITIVE, INCIDENTAL OR CONSEQUENTIAL
+ * LOSS, DAMAGE, COST OR EXPENSE OF ANY KIND WHATSOEVER RELATED TO THE
+ * SOFTWARE, HOWEVER CAUSED, EVEN IF MICROCHIP HAS BEEN ADVISED OF THE
+ * POSSIBILITY OR THE DAMAGES ARE FORESEEABLE.  TO THE FULLEST EXTENT
+ * ALLOWED BY LAW, MICROCHIP'S TOTAL LIABILITY ON ALL CLAIMS IN ANY WAY
+ * RELATED TO THIS SOFTWARE WILL NOT EXCEED THE AMOUNT OF FEES, IF ANY,
+ * THAT YOU HAVE PAID DIRECTLY TO MICROCHIP FOR THIS SOFTWARE.
  *
  * \asf_license_stop
  *
@@ -44,6 +37,8 @@
 #include "bsp/include/nm_bsp.h"
 #include "driver/source/nmasic.h"
 #include "driver/include/m2m_types.h"
+
+#define CONF_PERIPH
 
 #define NMI_GLB_RESET_0				(NMI_PERIPH_REG_BASE + 0x400)
 #define NMI_INTR_REG_BASE			(NMI_PERIPH_REG_BASE + 0xa00)
@@ -59,11 +54,7 @@
 
 
 
-#ifdef ARDUINO
-#define TIMEOUT						(2000)
-#else
-#define TIMEOUT						(0xfffffffful)
-#endif
+#define TIMEOUT						(0x2000ul)
 #define WAKUP_TRAILS_TIMEOUT		(4)
 
 sint8 chip_apply_conf(uint32 u32Conf)
@@ -87,6 +78,9 @@ sint8 chip_apply_conf(uint32 u32Conf)
 #endif
 #ifdef __DISABLE_FIRMWARE_LOGS__
 	val32 |= rHAVE_LOGS_DISABLED_BIT;
+#endif
+#if defined CONF_WINC_XO_XTALGM2_DIS
+	val32 |= rHAVE_XO_XTALGM2_DIS_BIT;
 #endif
 
 	val32 |= rHAVE_RESERVED1_BIT;
@@ -351,7 +345,7 @@ sint8 chip_wake(void)
 		trials++;
 		if(trials > WAKUP_TRAILS_TIMEOUT)
 		{
-			M2M_ERR("Failed to wakup the chip\n");
+			M2M_ERR("Failed to wake up the chip\n");
 			ret = M2M_ERR_TIME_OUT;
 			goto _WAKE_EXIT;
 		}
@@ -408,8 +402,8 @@ sint8 wait_for_bootrom(uint8 arg)
 	uint32 u32GpReg1 = 0;
 	uint32 u32DriverVerInfo = M2M_MAKE_VERSION_INFO(M2M_RELEASE_VERSION_MAJOR_NO,\
 				M2M_RELEASE_VERSION_MINOR_NO, M2M_RELEASE_VERSION_PATCH_NO,\
-				M2M_RELEASE_VERSION_MAJOR_NO, M2M_RELEASE_VERSION_MINOR_NO,\
-				M2M_RELEASE_VERSION_PATCH_NO);
+				M2M_MIN_REQ_DRV_VERSION_MAJOR_NO, M2M_MIN_REQ_DRV_VERSION_MINOR_NO,\
+				M2M_MIN_REQ_DRV_VERSION_PATCH_NO);
 
 
 	reg = 0;

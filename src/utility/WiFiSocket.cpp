@@ -20,11 +20,14 @@
 extern "C" {
 	#include "driver/include/m2m_wifi.h"
 	#include "socket/include/m2m_socket_host_if.h"
+	#include "socket/include/socket.h"
 	#include "driver/source/m2m_hif.h"
 	#include "driver/include/m2m_periph.h"
 }
 
 #include "WiFiSocket.h"
+
+#define CONF_PERIPH
 
 #ifdef LIMITED_RAM_DEVICE
 #define SOCKET_BUFFER_SIZE 64
@@ -128,12 +131,12 @@ sint8 WiFiSocketClass::listen(SOCKET sock, uint8 backlog)
 
 sint8 WiFiSocketClass::setopt(SOCKET socket, uint8 u8Level, uint8 option_name, const void *option_value, uint16 u16OptionLen)
 {
-	return setsockopt(socket, u8Level, option_name, option_value, u16OptionLen);
+    return setsockopt(socket, u8Level, option_name, option_value, u16OptionLen);
 }
 
 sint8 WiFiSocketClass::connect(SOCKET sock, struct sockaddr *pstrAddr, uint8 u8AddrLen)
 {
-	if (::connect(sock, pstrAddr, u8AddrLen) < 0) {
+	if (connectSocket(sock, pstrAddr, u8AddrLen) < 0) {
 		return 0;
 	}
 
@@ -172,14 +175,27 @@ uint8 WiFiSocketClass::listening(SOCKET sock)
 	return (_info[sock].state == SOCKET_STATE_LISTENING);
 }
 
+volatile uint8 flag = 0;
+volatile uint8 interruptsEnabled = 1;
 int WiFiSocketClass::available(SOCKET sock)
 {
+flag = 0;
 	m2m_wifi_handle_events(NULL);
 
+//Serial.print("hif_handle_isr set flag to: ");
+//Serial.println(flag);
+//Serial.print("interruptsEnabled: ");
+//Serial.println(interruptsEnabled);
 	if (_info[sock].state != SOCKET_STATE_CONNECTED && _info[sock].state != SOCKET_STATE_BOUND) {
-		return 0;
+Serial.println("nothing available because not connected");
+	  return 0;
 	}
 
+//	int r = (_info[sock].buffer.length + _info[sock].recvMsg.s16BufferSize);
+//	if (r) {
+//Serial.println("Something's available!");
+//	}
+//	return r;
 	return (_info[sock].buffer.length + _info[sock].recvMsg.s16BufferSize);
 }
 
@@ -492,7 +508,7 @@ int WiFiSocketClass::fillRecvBuffer(SOCKET sock)
 
 	uint8 lastTransfer = ((sint16)size == _info[sock].recvMsg.s16BufferSize);
 
-	if (hif_receive(_info[sock].recvMsg.pu8Buffer, _info[sock].buffer.data, (sint16)size, lastTransfer) != M2M_SUCCESS) {
+	if (hif_receive((uint32)_info[sock].recvMsg.pu8Buffer, _info[sock].buffer.data, (sint16)size, lastTransfer) != M2M_SUCCESS) {
 		return 0;
 	}
 

@@ -1,7 +1,7 @@
 /*
 
- This example connects to an unencrypted WiFi network.
- Then it prints the  MAC address of the WiFi shield,
+ This example connects to an network using WPA2 Enterprise authentication 
+ Then it prints the  MAC address of the Wifi shield,
  the IP address obtained, and other network details.
 
  Circuit:
@@ -16,10 +16,8 @@
 #include <WiFi101.h>
 
 #include "arduino_secrets.h" 
-///////please enter your sensitive data in the Secret tab/arduino_secrets.h
-char ssid[] = SECRET_SSID;        // your network SSID (name)
-char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as key for WEP)
-int status = WL_IDLE_STATUS;     // the WiFi radio's status
+tstr1xAuthCredentials auth = {SECRET_WPA2ENT_USER, SECRET_WPA2ENT_PASS};
+int status = WL_IDLE_STATUS;     // the Wifi radio's status
 
 void setup() {
 #ifdef ADAFRUIT_FEATHER_M0
@@ -41,10 +39,9 @@ void setup() {
 
   // attempt to connect to WiFi network:
   while ( WiFi.status() != WL_CONNECTED) {
-    Serial.print("Attempting to connect to WPA SSID: ");
+    Serial.print("Attempting to connect to WPA2 Enterprise SSID: ");
     Serial.println(ssid);
-    // Connect to WPA/WPA2 network:
-    status = WiFi.begin(ssid, pass);
+    status = WiFi.begin(ssid, &auth);
 
     // wait 10 seconds for connection:
     delay(10000);

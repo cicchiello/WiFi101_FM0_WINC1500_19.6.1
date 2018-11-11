@@ -458,7 +458,7 @@ static sint8 hif_isr(void)
 		{
 			uint16 size;
 
-			nm_bsp_interrupt_ctrl(0);
+//			nm_bsp_interrupt_ctrl(0);
 			/*Clearing RX interrupt*/
 			reg &= ~NBIT0;
 			ret = nm_write_reg(WIFI_HOST_RCV_CTRL_0,reg);
@@ -520,7 +520,7 @@ static sint8 hif_isr(void)
 #ifdef ARDUINO
 					{
 #endif
-						M2M_ERR("Scoket callback is not registered\n");
+						M2M_ERR("Socket callback is not registered\n");
 #ifdef ARDUINO
 					}
 #endif
@@ -626,33 +626,42 @@ ERR1:
 *   @return     The function SHALL return 0 for success and a negative value otherwise.
 */
 
+extern volatile uint8 flag;
 sint8 hif_handle_isr(void)
 {
+flag = 0;
 	sint8 ret = M2M_SUCCESS;	
 
 #ifdef ARDUINO
+if (flag < 1) flag = 1;
 	if (hif_receive_blocked) {
+flag = 100;
 		return ret;
 	}
 #endif
 
+if (flag < 3) flag = 3;
 	while (gstrHifCxt.u8Interrupt) {
 		/*must be at that place because of the race of interrupt increment and that decrement*/
 		/*when the interrupt enabled*/
 		gstrHifCxt.u8Interrupt--;
+if (flag < 4) flag = 4;
 		while(1)
 		{
 			ret = hif_isr();
 #ifdef ARDUINO
 			if (hif_receive_blocked) {
-				return ret;
+flag = 101;
+                           return ret;
 			}
 #endif
+if (flag < 6) flag = 6;
 			if(ret == M2M_SUCCESS) {
-				/*we will try forever untill we get that interrupt*/
+				/*we will try forever until we get that interrupt*/
 				/*Fail return errors here due to bus errors (reading expected values)*/
 				break;
 			} else {
+if (flag < 7) flag = 7;
 				M2M_ERR("(HIF) Fail to handle interrupt %d try Again..\n",ret);
 			}
 		}
@@ -662,7 +671,7 @@ sint8 hif_handle_isr(void)
 }
 /*
 *	@fn		hif_receive
-*	@brief	Host interface interrupt serviece routine
+*	@brief	Host interface interrupt service routine
 *	@param [in]	u32Addr
 *				Receive start address
 *	@param [out]	pu8Buf
@@ -694,13 +703,13 @@ sint8 hif_receive(uint32 u32Addr, uint8 *pu8Buf, uint16 u16Sz, uint8 isDone)
 	if(u16Sz > gstrHifCxt.u32RxSize)
 	{
 		ret = M2M_ERR_FAIL;
-		M2M_ERR("APP Requested Size is larger than the recived buffer size <%u><%lu>\n",u16Sz, gstrHifCxt.u32RxSize);
+		M2M_ERR("APP Requested Size is larger than the received buffer size <%u><%lu>\n",u16Sz, gstrHifCxt.u32RxSize);
 		goto ERR1;
 	}
 	if((u32Addr < gstrHifCxt.u32RxAddr)||((u32Addr + u16Sz)>(gstrHifCxt.u32RxAddr + gstrHifCxt.u32RxSize)))
 	{
 		ret = M2M_ERR_FAIL;
-		M2M_ERR("APP Requested Address beyond the recived buffer address and length\n");
+		M2M_ERR("APP Requested Address beyond the received buffer address and length\n");
 		goto ERR1;
 	}
 	
@@ -721,7 +730,7 @@ ERR1:
 
 /**
 *	@fn		hif_register_cb
-*	@brief	To set Callback function for every compantent Component
+*	@brief	To set Callback function for every component
 *	@param [in]	u8Grp
 *				Group to which the Callback function should be set.
 *	@param [in]	fn

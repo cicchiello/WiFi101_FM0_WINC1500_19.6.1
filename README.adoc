@@ -1,14 +1,20 @@
-= WiFi library for the Arduino WiFi Shield 101 and MKR1000 board =
+= Customized WiFi library for the Adafruit Feather M0+ WINC1500 =
 
-image:https://travis-ci.org/arduino-libraries/WiFi101.svg?branch=master["Build Status", link="https://travis-ci.org/arduino-libraries/WiFi101"]
+Intent: upgrade the WINC1500 (B) from 19.5.2 to 19.6.1, and customize the WiFi101 library to provide access to the newly supported WPA2 Enterprise EAP authentication functionality.
 
-This library implements a network driver for devices based
-on the ATMEL WINC1500 WiFi module.
+No extra hardware required (just PC laptop and Feather M0+ WINC1500)
 
-For more information about this library please visit us at
-https://www.arduino.cc/en/Reference/WiFi101
+Adafruit_WINC1500 (~2yrs old) == Ada
+WiFi101 0.15.2 == WiFi
+Microchip(Atmel)'s drivers 
 
-== License ==
+
+== References ==
+
+http://ww1.microchip.com/downloads/en/DeviceDoc/ATWINC15x0%20Software%20Release%20Notes_9%20Aug%202018.pdf
+
+
+== Licenses ==
 
 Copyright (c) Arduino LLC. All right reserved.
 
@@ -25,3 +31,5 @@ Lesser General Public License for more details.
 You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+
+====================

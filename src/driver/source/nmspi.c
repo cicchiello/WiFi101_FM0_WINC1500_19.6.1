@@ -4,42 +4,36 @@
  *
  * \brief This module contains NMC1000 SPI protocol bus APIs implementation.
  *
- * Copyright (c) 2016-2017 Atmel Corporation. All rights reserved.
+ * Copyright (c) 2016-2018 Microchip Technology Inc. and its subsidiaries.
  *
  * \asf_license_start
  *
  * \page License
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Subject to your compliance with these terms, you may use Microchip
+ * software and any derivatives exclusively with Microchip products.
+ * It is your responsibility to comply with third party license terms applicable
+ * to your use of third party software (including open source software) that
+ * may accompany Microchip software.
  *
- * 1. Redistributions of source code must retain the above copyright notice,
- *    this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * 3. The name of Atmel may not be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY ATMEL "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT ARE
- * EXPRESSLY AND SPECIFICALLY DISCLAIMED. IN NO EVENT SHALL ATMEL BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS SUPPLIED BY MICROCHIP "AS IS". NO WARRANTIES,
+ * WHETHER EXPRESS, IMPLIED OR STATUTORY, APPLY TO THIS SOFTWARE,
+ * INCLUDING ANY IMPLIED WARRANTIES OF NON-INFRINGEMENT, MERCHANTABILITY,
+ * AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT WILL MICROCHIP BE
+ * LIABLE FOR ANY INDIRECT, SPECIAL, PUNITIVE, INCIDENTAL OR CONSEQUENTIAL
+ * LOSS, DAMAGE, COST OR EXPENSE OF ANY KIND WHATSOEVER RELATED TO THE
+ * SOFTWARE, HOWEVER CAUSED, EVEN IF MICROCHIP HAS BEEN ADVISED OF THE
+ * POSSIBILITY OR THE DAMAGES ARE FORESEEABLE.  TO THE FULLEST EXTENT
+ * ALLOWED BY LAW, MICROCHIP'S TOTAL LIABILITY ON ALL CLAIMS IN ANY WAY
+ * RELATED TO THIS SOFTWARE WILL NOT EXCEED THE AMOUNT OF FEES, IF ANY,
+ * THAT YOU HAVE PAID DIRECTLY TO MICROCHIP FOR THIS SOFTWARE.
  *
  * \asf_license_stop
  *
  */
 #include "common/include/nm_common.h"
 
+#define CONF_WINC_USE_SPI 1
 #ifdef CONF_WINC_USE_SPI
 
 #define USE_OLD_SPI_SW
@@ -128,12 +122,8 @@ static sint8 nmi_spi_rw(uint8 *bin,uint8* bout,uint16 sz)
 	Crc7
 
 ********************************************/
-#if (defined ARDUINO_ARCH_AVR)
-#include <avr/pgmspace.h>
-static PROGMEM const uint8 crc7_syndrome_table[256] = {
-#else
+
 static const uint8 crc7_syndrome_table[256] = {
-#endif
 	0x00, 0x09, 0x12, 0x1b, 0x24, 0x2d, 0x36, 0x3f,
 	0x48, 0x41, 0x5a, 0x53, 0x6c, 0x65, 0x7e, 0x77,
 	0x19, 0x10, 0x0b, 0x02, 0x3d, 0x34, 0x2f, 0x26,
@@ -171,11 +161,7 @@ static const uint8 crc7_syndrome_table[256] = {
 
 static uint8 crc7_byte(uint8 crc, uint8 data)
 {
-#if (defined ARDUINO_ARCH_AVR)
-	return pgm_read_byte_near(crc7_syndrome_table + ((crc << 1) ^ data));
-#else
 	return crc7_syndrome_table[(crc << 1) ^ data];
-#endif
 }
 
 static uint8 crc7(uint8 crc, const uint8 *buffer, uint32 len)
@@ -595,7 +581,7 @@ static int spi_cmd_complete(uint8_t cmd, uint32_t adr, uint8_t *b, uint32_t sz, 
 			//uint16_t crc1, crc2;
 			uint8_t crc[2];
 			/**
-			Data Respnose header
+			Data Response header
 			**/
 			retry = SPI_RESP_RETRY_COUNT;
 			do {
@@ -706,7 +692,7 @@ static int spi_cmd_complete(uint8_t cmd, uint32_t adr, uint8_t *b, uint32_t sz, 
 					handled above for the first DMA.
 					**/
 					/**
-					Data Respnose header
+					Data Response header
 					**/
 					retry = SPI_RESP_RETRY_COUNT;
 					do {
@@ -770,7 +756,7 @@ static sint8 spi_data_read(uint8 *b, uint16 sz,uint8 clockless)
 			nbytes = DATA_PKT_SZ;
 
 		/**
-			Data Respnose header
+			Data Response header
 		**/
 		retry = SPI_RESP_RETRY_COUNT;
 		do {
@@ -1065,7 +1051,7 @@ _RETRY_:
 		goto _FAIL_;
 	}
 
-	/* to avoid endianess issues */
+	/* to avoid endianness issues */
 	result = spi_data_read(&tmp[0], 4, clockless);
 	if (result != N_OK) {
 		M2M_ERR("[nmi spi]: Failed data read...\n");
@@ -1231,9 +1217,9 @@ sint8 nm_spi_init(void)
 		/* Read failed. Try with CRC off. This might happen when module
 		is removed but chip isn't reset*/
 		gu8Crc_off = 1;
-		M2M_ERR("[nmi spi]: Failed internal read protocol with CRC on, retyring with CRC off...\n");
+		M2M_ERR("[nmi spi]: Failed internal read protocol with CRC on, retrying with CRC off...\n");
 		if (!spi_read_reg(NMI_SPI_PROTOCOL_CONFIG, &reg)){
-			// Reaad failed with both CRC on and off, something went bad
+			// Read failed with both CRC on and off, something went bad
 			M2M_ERR( "[nmi spi]: Failed internal read protocol...\n");
 			return 0;
 		}

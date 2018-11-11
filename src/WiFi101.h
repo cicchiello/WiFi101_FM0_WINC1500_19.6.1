@@ -21,7 +21,7 @@
 #define WIFI_H
 
 #define WIFI_FIRMWARE_LATEST_MODEL_A "19.4.4"
-#define WIFI_FIRMWARE_LATEST_MODEL_B "19.5.4"
+#define WIFI_FIRMWARE_LATEST_MODEL_B "19.6.1"
 
 // for backwards compatibility
 #define WIFI_FIRMWARE_REQUIRED WIFI_FIRMWARE_LATEST_MODEL_B
@@ -96,6 +96,7 @@ public:
 	uint8_t begin(const char *ssid);
 	uint8_t begin(const char *ssid, uint8_t key_idx, const char* key);
 	uint8_t begin(const char *ssid, const char *key);
+	uint8_t begin(const char *ssid, const tstr1xAuthCredentials *auth);
 	uint8_t begin(const String &ssid) { return begin(ssid.c_str()); }
 	uint8_t begin(const String &ssid, uint8_t key_idx, const String &key) { return begin(ssid.c_str(), key_idx, key.c_str()); }
 	uint8_t begin(const String &ssid, const String &key) { return begin(ssid.c_str(), key.c_str()); }

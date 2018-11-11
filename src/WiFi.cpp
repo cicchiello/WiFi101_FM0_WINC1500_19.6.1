@@ -45,6 +45,8 @@ extern "C" {
   #include "driver/include/m2m_wifi.h"
 }
 
+#define CONF_PERIPH
+
 static void wifi_cb(uint8_t u8MsgType, void *pvMsg)
 {
 	WiFi.handleEvent(u8MsgType, pvMsg);
@@ -52,9 +54,11 @@ static void wifi_cb(uint8_t u8MsgType, void *pvMsg)
 
 void WiFiClass::handleEvent(uint8_t u8MsgType, void *pvMsg)
 {
+Serial.println("WiFiClass::handleEvent");
 	switch (u8MsgType) {
 		case M2M_WIFI_RESP_DEFAULT_CONNECT:
 		{
+Serial.println("RESP_DEFAULT_CONNECT");		  
 			tstrM2MDefaultConnResp *pstrDefaultConnResp = (tstrM2MDefaultConnResp *)pvMsg;
 			if (pstrDefaultConnResp->s8ErrorCode) {
 				_status = WL_DISCONNECTED;
@@ -64,6 +68,7 @@ void WiFiClass::handleEvent(uint8_t u8MsgType, void *pvMsg)
 
 		case M2M_WIFI_RESP_CON_STATE_CHANGED:
 		{
+Serial.println("RESP_CON_STATE_CHANGED");
 			tstrM2mWifiStateChanged *pstrWifiState = (tstrM2mWifiStateChanged *)pvMsg;
 			if (pstrWifiState->u8CurrState == M2M_WIFI_CONNECTED) {
 				//SERIAL_PORT_MONITOR.println("wifi_cb: M2M_WIFI_RESP_CON_STATE_CHANGED: CONNECTED");
@@ -105,6 +110,7 @@ void WiFiClass::handleEvent(uint8_t u8MsgType, void *pvMsg)
 
 		case M2M_WIFI_REQ_DHCP_CONF:
 		{
+Serial.println("REQ_DHCP_CONF");
 			if (_mode == WL_STA_MODE) {
 				tstrM2MIPConfig *pstrIPCfg = (tstrM2MIPConfig *)pvMsg;
 				_localip = pstrIPCfg->u32StaticIP;
@@ -134,12 +140,14 @@ void WiFiClass::handleEvent(uint8_t u8MsgType, void *pvMsg)
 
 		case M2M_WIFI_RESP_CURRENT_RSSI:
 		{
+Serial.println("RESP_CURRENT_RSSI");
 			_resolve = *((int8_t *)pvMsg);
 		}
 		break;
 
 		case M2M_WIFI_RESP_PROVISION_INFO:
 		{
+Serial.println("RESP_PROVISION_INFO");
 			tstrM2MProvisionInfo *pstrProvInfo = (tstrM2MProvisionInfo *)pvMsg;
 			//SERIAL_PORT_MONITOR.println("wifi_cb: M2M_WIFI_RESP_PROVISION_INFO");
 
@@ -162,6 +170,7 @@ void WiFiClass::handleEvent(uint8_t u8MsgType, void *pvMsg)
 
 		case M2M_WIFI_RESP_SCAN_DONE:
 		{
+Serial.println("RESP_SCAN_DONE");
 			tstrM2mScanDone *pstrInfo = (tstrM2mScanDone *)pvMsg;
 			if (pstrInfo->u8NumofCh >= 1) {
 				_status = WL_SCAN_COMPLETED;
@@ -171,6 +180,7 @@ void WiFiClass::handleEvent(uint8_t u8MsgType, void *pvMsg)
 
 		case M2M_WIFI_RESP_SCAN_RESULT:
 		{
+Serial.println("RESP_SCAN_RESULT");
 			tstrM2mWifiscanResult *pstrScanResult = (tstrM2mWifiscanResult *)pvMsg;
 			uint16_t scan_ssid_len = strlen((const char *)pstrScanResult->au8SSID);
 			memset(_scan_ssid, 0, M2M_MAX_SSID_LEN);
@@ -192,6 +202,7 @@ void WiFiClass::handleEvent(uint8_t u8MsgType, void *pvMsg)
 
 		case M2M_WIFI_RESP_CONN_INFO:
 		{
+Serial.println("RESP_CONN_INFO");
 			tstrM2MConnInfo	*pstrConnInfo = (tstrM2MConnInfo*)pvMsg;
 
 			if (_remoteMacAddress) {
@@ -208,6 +219,7 @@ void WiFiClass::handleEvent(uint8_t u8MsgType, void *pvMsg)
 
 		case M2M_WIFI_RESP_GET_SYS_TIME:
 		{
+Serial.println("RESP_GET_SYS_TIME");
 			if (_resolve != 0) {
 				memcpy((tstrSystemTime *)_resolve, pvMsg, sizeof(tstrSystemTime));
 
@@ -416,6 +428,11 @@ uint8_t WiFiClass::begin(const char *ssid, uint8_t key_idx, const char* key)
 uint8_t WiFiClass::begin(const char *ssid, const char *key)
 {
 	return startConnect(ssid, M2M_WIFI_SEC_WPA_PSK, key);
+}
+
+uint8_t WiFiClass::begin(const char *ssid, const tstr1xAuthCredentials *auth)
+{
+	return startConnect(ssid, M2M_WIFI_SEC_802_1X, auth);
 }
 
 uint8_t WiFiClass::startConnect(const char *ssid, uint8_t u8SecType, const void *pvAuthInfo)
@@ -1137,7 +1154,7 @@ uint32_t WiFiClass::getTime()
 
 	_resolve = (uint32_t)&systemTime;
 
-	m2m_wifi_get_sytem_time();
+	m2m_wifi_get_system_time();
 
 	unsigned long start = millis();
 	while (_resolve != 0 && millis() - start < 5000) {

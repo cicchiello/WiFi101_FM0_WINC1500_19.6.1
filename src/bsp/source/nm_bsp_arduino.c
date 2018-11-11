@@ -43,15 +43,32 @@
  */
 
 #include "bsp/include/nm_bsp.h"
-#include "bsp/include/nm_bsp_arduino.h"
 #include "common/include/nm_common.h"
+#include <Arduino.h>
 
-int8_t gi8Winc1501CsPin = WINC1501_SPI_CS_PIN;
-int8_t gi8Winc1501ResetPin = WINC1501_RESET_PIN;
-int8_t gi8Winc1501IntnPin = WINC1501_INTN_PIN;
-int8_t gi8Winc1501ChipEnPin = WINC1501_CHIP_EN_PIN;
+/*
+ * Arduino variants may redefine those pins.
+ * If no pins are specified the following defaults are used:
+ *  WINC1501_RESET_PIN   - pin 5
+ *  WINC1501_INTN_PIN    - pin 7
+ *  WINC1501_CHIP_EN_PIN - not connected (tied to VCC)
+ */
 
+// was harcoded, now configurable, by making extern
+//#define CONF_WINC_RESET_PIN				5
+//#define CONF_WINC_INTN_PIN				7
 static tpfNmBspIsr gpfIsr;
+
+int8_t gi8Winc1501CsPin = 0;
+int8_t gi8Winc1501ResetPin = 5;
+int8_t gi8Winc1501IntnPin = 7;
+int8_t gi8Winc1501ChipEnPin = 0;
+
+#define WINC1501_SPI_CS_PIN (gi8Winc1501CsPin)
+#define WINC1501_CHIP_EN_PIN (gi8Winc1501ChipEnPin)
+#define WINC1501_RESET_PIN (gi8Winc1501ResetPin)
+#define WINC1501_INTN_PIN (gi8Winc1501IntnPin)
+
 
 void __attribute__((weak)) attachInterruptMultiArch(uint32_t pin, void *chip_isr, uint32_t mode)
 {
@@ -79,35 +96,17 @@ static void chip_isr(void)
  */
 static void init_chip_pins(void)
 {
-	if (gi8Winc1501ResetPin > -1)
-	{
-		/* Configure RESETN pin as output. */
-		pinMode(gi8Winc1501ResetPin, OUTPUT);
-		digitalWrite(gi8Winc1501ResetPin, HIGH);
-	}
+	/* Configure RESETN D6 pins as output. */
+	pinMode(WINC1501_RESET_PIN, OUTPUT);
+	digitalWrite(WINC1501_RESET_PIN, HIGH);
 
-	/* Configure INTN pins as input. */
-	pinMode(gi8Winc1501IntnPin, INPUT);
+	/* Configure INTN D7 pins as pinput. */
+	pinMode(WINC1501_INTN_PIN, INPUT);
 
-	if (gi8Winc1501ChipEnPin > -1)
-	{
-		/* Configure CHIP_EN as pull-up */
-		pinMode(gi8Winc1501ChipEnPin, INPUT_PULLUP);
-	}
-}
-
-static void deinit_chip_pins(void)
-{
-	if (gi8Winc1501ResetPin > -1)
-	{
-		digitalWrite(gi8Winc1501ResetPin, LOW);
-		pinMode(gi8Winc1501ResetPin, INPUT);
-	}
-
-	if (gi8Winc1501ChipEnPin > -1)
-	{
-		pinMode(gi8Winc1501ChipEnPin, INPUT);
-	}
+#if defined(WINC1501_CHIP_EN_PIN)
+	/* Configure CHIP_EN as pull-up */
+	pinMode(WINC1501_CHIP_EN_PIN, INPUT_PULLUP);
+#endif
 }
 
 /*
@@ -139,8 +138,6 @@ sint8 nm_bsp_init(void)
  */
 sint8 nm_bsp_deinit(void)
 {
-	deinit_chip_pins();
-
 	return M2M_SUCCESS;
 }
 
@@ -154,13 +151,10 @@ sint8 nm_bsp_deinit(void)
  */
 void nm_bsp_reset(void)
 {
-	if (gi8Winc1501ResetPin > -1)
-	{
-		digitalWrite(gi8Winc1501ResetPin, LOW);
-		nm_bsp_sleep(100);
-		digitalWrite(gi8Winc1501ResetPin, HIGH);
-		nm_bsp_sleep(100);
-	}
+	digitalWrite(WINC1501_RESET_PIN, LOW);
+	nm_bsp_sleep(100);
+	digitalWrite(WINC1501_RESET_PIN, HIGH);
+	nm_bsp_sleep(100);
 }
 
 /*
@@ -192,7 +186,7 @@ void nm_bsp_sleep(uint32 u32TimeMsec)
 void nm_bsp_register_isr(tpfNmBspIsr pfIsr)
 {
 	gpfIsr = pfIsr;
-	attachInterruptMultiArch(gi8Winc1501IntnPin, chip_isr, FALLING);
+	attachInterruptMultiArch(WINC1501_INTN_PIN, chip_isr, FALLING);
 }
 
 /*
@@ -204,11 +198,14 @@ void nm_bsp_register_isr(tpfNmBspIsr pfIsr)
  *	@date	28 OCT 2013
  *	@version	1.0
  */
+extern volatile uint8 interruptsEnabled;
 void nm_bsp_interrupt_ctrl(uint8 u8Enable)
 {
 	if (u8Enable) {
-		attachInterruptMultiArch(gi8Winc1501IntnPin, chip_isr, FALLING);
+	  interruptsEnabled = true;
+		attachInterruptMultiArch(WINC1501_INTN_PIN, chip_isr, FALLING);
 	} else {
-		detachInterruptMultiArch(gi8Winc1501IntnPin);
+	  interruptsEnabled = false;
+		detachInterruptMultiArch(WINC1501_INTN_PIN);
 	}
 }

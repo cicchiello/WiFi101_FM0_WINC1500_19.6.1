@@ -4,36 +4,29 @@
  *
  * \brief BSD compatible socket interface.
  *
- * Copyright (c) 2016-2017 Atmel Corporation. All rights reserved.
+ * Copyright (c) 2016-2018 Microchip Technology Inc. and its subsidiaries.
  *
  * \asf_license_start
  *
  * \page License
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Subject to your compliance with these terms, you may use Microchip
+ * software and any derivatives exclusively with Microchip products.
+ * It is your responsibility to comply with third party license terms applicable
+ * to your use of third party software (including open source software) that
+ * may accompany Microchip software.
  *
- * 1. Redistributions of source code must retain the above copyright notice,
- *    this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * 3. The name of Atmel may not be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY ATMEL "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT ARE
- * EXPRESSLY AND SPECIFICALLY DISCLAIMED. IN NO EVENT SHALL ATMEL BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS SUPPLIED BY MICROCHIP "AS IS". NO WARRANTIES,
+ * WHETHER EXPRESS, IMPLIED OR STATUTORY, APPLY TO THIS SOFTWARE,
+ * INCLUDING ANY IMPLIED WARRANTIES OF NON-INFRINGEMENT, MERCHANTABILITY,
+ * AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT WILL MICROCHIP BE
+ * LIABLE FOR ANY INDIRECT, SPECIAL, PUNITIVE, INCIDENTAL OR CONSEQUENTIAL
+ * LOSS, DAMAGE, COST OR EXPENSE OF ANY KIND WHATSOEVER RELATED TO THE
+ * SOFTWARE, HOWEVER CAUSED, EVEN IF MICROCHIP HAS BEEN ADVISED OF THE
+ * POSSIBILITY OR THE DAMAGES ARE FORESEEABLE.  TO THE FULLEST EXTENT
+ * ALLOWED BY LAW, MICROCHIP'S TOTAL LIABILITY ON ALL CLAIMS IN ANY WAY
+ * RELATED TO THIS SOFTWARE WILL NOT EXCEED THE AMOUNT OF FEES, IF ANY,
+ * THAT YOU HAVE PAID DIRECTLY TO MICROCHIP FOR THIS SOFTWARE.
  *
  * \asf_license_stop
  *
@@ -42,7 +35,6 @@
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*
 INCLUDES
 *=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
-#include <stdint.h>
 
 #include "bsp/include/nm_bsp.h"
 #include "socket/include/socket.h"
@@ -122,6 +114,12 @@ volatile tpfAppResolveCb		gpfAppResolveCb;
 volatile uint8					gbSocketInit = 0;
 volatile tpfPingCb				gfpPingCb;
 
+//extern uint8 hif_small_xfer;
+//static uint32 u32Address;
+//static SOCKET sock_xfer;
+//static uint8 type_xfer;
+//static tstrSocketRecvMsg msg_xfer;
+
 /*********************************************************************
 Function
 		Socket_ReadSocketData
@@ -192,6 +190,57 @@ NMI_API void Socket_ReadSocketData(SOCKET sock, tstrSocketRecvMsg *pstrRecv,uint
 				break;
 			}
 		}while(u16ReadCount != 0);
+	}
+}
+NMI_API void Socket_ReadSocketData_Small(void)
+{
+	if((msg_xfer.u16RemainingSize > 0) && (gastrSockets[sock_xfer].pu8UserBuffer != NULL) && (gastrSockets[sock_xfer].u16UserBufferSize > 0) && (gastrSockets[sock_xfer].bIsUsed == 1))
+	{
+		uint16	u16Read;
+		sint16	s16Diff;
+		uint8	u8SetRxDone;
+
+		//do
+		//{
+			u8SetRxDone = 1;
+			u16Read = msg_xfer.u16RemainingSize;
+			s16Diff	= u16Read - gastrSockets[sock_xfer].u16UserBufferSize;
+			if(s16Diff > 0)
+			{
+				/*Has to be subsequent transfer*/
+				hif_small_xfer = 2;
+				u8SetRxDone = 0;
+				u16Read		= gastrSockets[sock_xfer].u16UserBufferSize;
+			}
+			else
+			{
+				/*Last xfer, needed for UDP*/
+				hif_small_xfer = 3;
+			}
+			if(hif_receive(u32Address, gastrSockets[sock_xfer].pu8UserBuffer, u16Read, u8SetRxDone) == M2M_SUCCESS)
+			{
+				msg_xfer.pu8Buffer			= gastrSockets[sock_xfer].pu8UserBuffer;
+				msg_xfer.s16BufferSize		= u16Read;
+				msg_xfer.u16RemainingSize	-= u16Read;
+
+				if (gpfAppSocketCb)
+					gpfAppSocketCb(sock_xfer,type_xfer, &msg_xfer);
+
+				u32Address += u16Read;
+			}
+			else
+			{
+				M2M_INFO("(ERRR)Current <%d>\n", u16ReadCount);
+				//break;
+			}
+			
+			if (hif_small_xfer == 3)
+			{
+				hif_small_xfer = 0;
+				hif_chip_sleep();
+			}
+			
+		//}while(u16ReadCount != 0);
 	}
 }
 #endif
@@ -366,6 +415,8 @@ static void m2m_ip_cb(uint8 u8OpCode, uint16 u16BufferSize,uint32 u32Address)
 				}
 				else
 				{
+					/* Don't tidy up here. Application must call close().
+					*/
 					strRecvMsg.s16BufferSize	= s16RecvStatus;
 #ifdef ARDUINO
 					strRecvMsg.pu8Buffer		= 0;
@@ -431,7 +482,7 @@ static void m2m_ip_cb(uint8 u8OpCode, uint16 u16BufferSize,uint32 u32Address)
 		tstrPingReply	strPingReply;
 		if(hif_receive(u32Address, (uint8*)&strPingReply, sizeof(tstrPingReply), 1) == M2M_SUCCESS)
 		{
-			gfpPingCb = (void (*)(uint32 , uint32 , uint8))(uintptr_t)strPingReply.u32CmdPrivate;
+			gfpPingCb = (void (*)(uint32 , uint32 , uint8))strPingReply.u32CmdPrivate;
 			if(gfpPingCb != NULL)
 			{
 				gfpPingCb(strPingReply.u32IPAddr, strPingReply.u32RTT, strPingReply.u8ErrorCode);
@@ -505,7 +556,7 @@ Return
 Author
 		Ahmed Ezzat
 
-Versio
+Version
 		1.0
 
 Date
@@ -740,7 +791,7 @@ Version
 Date
 		5 June 2012
 *********************************************************************/
-sint8 connect(SOCKET sock, struct sockaddr *pstrAddr, uint8 u8AddrLen)
+sint8 connectSocket(SOCKET sock, struct sockaddr *pstrAddr, uint8 u8AddrLen)
 {
 	sint8	s8Ret = SOCK_ERR_INVALID_ARG;
 	if((sock >= 0) && (pstrAddr != NULL) && (gastrSockets[sock].bIsUsed == 1) && (u8AddrLen != 0))
@@ -1346,11 +1397,7 @@ sint8 m2m_ping_req(uint32 u32DstIP, uint8 u8TTL, tpfPingCb fpPingCb)
 
 		strPingCmd.u16PingCount		= 1;
 		strPingCmd.u32DestIPAddr	= u32DstIP;
-#ifdef ARDUINO
-		strPingCmd.u32CmdPrivate	= (uint32)(uintptr_t)(fpPingCb);
-#else
-		strPingCmd.u32CmdPrivate	= (uint32)(fpPingCb);
-#endif
+		strPingCmd.u32CmdPrivate	= (uint32)fpPingCb;
 		strPingCmd.u8TTL			= u8TTL;
 
 		s8Ret = SOCKET_REQUEST(SOCKET_CMD_PING, (uint8*)&strPingCmd, sizeof(tstrPingCmd), NULL, 0, 0);

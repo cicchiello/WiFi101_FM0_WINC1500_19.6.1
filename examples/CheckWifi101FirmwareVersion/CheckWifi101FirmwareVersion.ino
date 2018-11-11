@@ -13,6 +13,10 @@
 #include <driver/source/nmasic.h>
 
 void setup() {
+#ifdef ADAFRUIT_FEATHER_M0
+  WiFi.setPins(8,7,4,2);
+#endif
+
   // Initialize serial
   Serial.begin(9600);
   while (!Serial) {

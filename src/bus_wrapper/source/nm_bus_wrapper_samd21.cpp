@@ -49,19 +49,40 @@
  * Variants may define an alternative SPI instace to use for WiFi101.
  * If not defined the following defaults are used:
  *   WINC1501_SPI    - SPI
+ *   WINC1501_CS_PIN - pin 10
  */
 #if !defined(WINC1501_SPI)
   #define WINC1501_SPI SPI
 #endif
 
+// make CS pin configurable by 'extern'ing it
+//extern uint8_t CONF_WINC_CS_PIN;
+
+//#if !defined(WINC1501_SPI_CS_PIN)
+//  #define WINC1501_SPI_CS_PIN CONF_WINC_CS_PIN
+//#endif
+
+extern int8_t gi8Winc1501CsPin;
+extern int8_t gi8Winc1501ResetPin;
+extern int8_t gi8Winc1501IntnPin;
+extern int8_t gi8Winc1501ChipEnPin;
+
+#define WINC1501_SPI_CS_PIN (gi8Winc1501CsPin)
+#define WINC1501_CHIP_EN_PIN (gi8Winc1501ChipEnPin)
+#define WINC1501_RESET_PIN (gi8Winc1501ResetPin)
+#define WINC1501_INTN_PIN (gi8Winc1501IntnPin)
+
 extern "C" {
 
 #include "bsp/include/nm_bsp.h"
-#include "bsp/include/nm_bsp_arduino.h"
 #include "common/include/nm_common.h"
 #include "bus_wrapper/include/nm_bus_wrapper.h"
 
 }
+
+
+// make CS pin configurable by 'extern'ing it
+extern uint8_t CONF_WINC_CS_PIN;
 
 #define NM_BUS_MAX_TRX_SZ	256
 
@@ -90,7 +111,7 @@ static sint8 spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
 	}
 
 	WINC1501_SPI.beginTransaction(wifi_SPISettings);
-	digitalWrite(gi8Winc1501CsPin, LOW);
+	digitalWrite(WINC1501_SPI_CS_PIN, LOW);
 
 	while (u16Sz) {
 		*pu8Miso = WINC1501_SPI.transfer(*pu8Mosi);
@@ -102,7 +123,7 @@ static sint8 spi_rw(uint8* pu8Mosi, uint8* pu8Miso, uint16 u16Sz)
 			pu8Mosi++;
 	}
 
-	digitalWrite(gi8Winc1501CsPin, HIGH);
+	digitalWrite(WINC1501_SPI_CS_PIN, HIGH);
 	WINC1501_SPI.endTransaction();
 
 	return M2M_SUCCESS;
@@ -126,8 +147,8 @@ sint8 nm_bus_init(void * /* pvInitValue */)
 	WINC1501_SPI.begin();
 	
 	/* Configure CS PIN. */
-	pinMode(gi8Winc1501CsPin, OUTPUT);
-	digitalWrite(gi8Winc1501CsPin, HIGH);
+	pinMode(WINC1501_SPI_CS_PIN, OUTPUT);
+	digitalWrite(WINC1501_SPI_CS_PIN, HIGH);
 
 	/* Reset WINC1500. */
 	nm_bsp_reset();

@@ -31,6 +31,10 @@ char server[] = "www.google.com";    // name address for Google (using DNS)
 WiFiSSLClient client;
 
 void setup() {
+#ifdef ADAFRUIT_FEATHER_M0
+  WiFi.setPins(8,7,4,2);
+#endif
+
   //Initialize serial and wait for port to open:
   Serial.begin(9600);
   while (!Serial) {
@@ -52,7 +56,11 @@ void setup() {
     status = WiFi.begin(ssid, pass);
 
     // wait 10 seconds for connection:
-    delay(10000);
+    uint8_t timeout = 20;
+    while (timeout && (WiFi.status() != WL_CONNECTED)) {
+      timeout--;
+      delay(500);
+    }
   }
   Serial.println("Connected to wifi");
   printWiFiStatus();
@@ -66,6 +74,7 @@ void setup() {
     client.println("Host: www.google.com");
     client.println("Connection: close");
     client.println();
+Serial.println("sent HTTP request");
   }
 }
 
