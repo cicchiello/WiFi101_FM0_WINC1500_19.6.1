@@ -34,7 +34,7 @@ void setup() {
     ; // wait for serial port to connect. Needed for native USB port only
   }
 
-  Serial.println("in setup");
+  //Serial.println("in setup");
 
   /* Initialize the BSP. */
   nm_bsp_init();
@@ -65,7 +65,7 @@ struct {
 void dumpNibble(uint8 n)
 {
   char c;
-  if (n > 9) c = 'A' + (n-10);
+  if (n > 9) c = 'a' + (n-10);
   else c = '0' + n;
   
   Serial.print(c);
@@ -79,46 +79,101 @@ void dumpByte(uint8 b)
   dumpNibble(l);
 }
 
-void dumpWord(uint8 w)
+void dumpWord(uint16 w)
 {
-  uint8 h = (w >> 8) & 0xff;
-  uint8 l = (w) & 0xff;
+  uint8 h = (w & 0xff00) >> 8;
+  uint8 l = w & 0x00ff;
   dumpByte(h);
   dumpByte(l);
 }
 
-void dumpRootCertEntry(const tstrRootCertEntryHeader *entry, uint8 idx)
+void dumpBuffer(const uint8 *ptr, const uint16 len)
 {
-  Serial.println();
-//Serial.print("Address: "); Serial.println((uint32)((void*)entry));
-  
-  const tstrRootCertEntryHeader *pstrEntryHdr = entry;
-  const tstrRootCertPubKeyInfo *pstrKey = &pstrEntryHdr->strPubKey;
-  Serial.print("dumpRootCertEntry: dumping a ");
-  Serial.print(pstrKey->u32PubKeyType == ROOT_CERT_PUBKEY_RSA ? "RSA" : "ECDSA");
-  Serial.println(" public key");
-
-  Serial.print("---begin cert #"); Serial.println(idx);
-  const tstrRootCertRsaKeyInfo *info = &pstrKey->strRsaKeyInfo;
-  uint16 nSz = info->u16NSz;
-  uint16 eSz = info->u16ESz;
-  Serial.print("dumpRootCertEntry: nSz: "); Serial.println(nSz);
-  Serial.print("dumpRootCertEntry: eSz: "); Serial.println(eSz);
-  uint16 tSz = WORD_ALIGN(nSz) + WORD_ALIGN(eSz);
-  for (int i = 0; i < tSz; ) {
+  for (int i = 0; i < len; ) {
+      Serial.print("0000");
       dumpWord(i);
-      Serial.print("   ");
-      int j;
-      for (j = 0; (j + i < tSz) && (j < 16); j++) {
-      	  uint8 b = ((uint8*)entry)[i*16 + j];
+      Serial.print(":");
+      for (int j = 0; (j + i < len) && (j < 16); ) {
 	  Serial.print(" ");
-	  dumpByte(b);
+	  dumpByte(ptr[i + j]);
+	  j++;
+	  if (j + i < len) {
+	    dumpByte(ptr[i + j]);
+	    j++;
+	  }
       }
       i += 16;
       Serial.println();
   }
+}
+
+
+void dumpDate(const tstrSystemTime *d)
+{
+  Serial.print(d->u8Month);
+  Serial.print(" ");
+  Serial.print(d->u8Day);
+  Serial.print(" ");
+  Serial.print(d->u16Year);
+}
+
+
+void dumpRootCert(const tstrRootCertEntryHeader *entry, uint8 idx)
+{
+  Serial.println();
   
-  Serial.println("---end");
+  Serial.print("dumpRootCert: certificate #"); Serial.println(idx);
+  
+  const uint8 *pNameHash = &entry->au8SHA1NameHash[0];
+  Serial.println("dumpRootCert: Name Hash:");
+  dumpBuffer(pNameHash, CRYPTO_SHA1_DIGEST_SIZE);
+  Serial.println();
+
+  Serial.println("dumpRootCert: Validity");
+  Serial.print("dumpRootCert:   Not Before: ");
+  dumpDate(&entry->strStartDate);
+  Serial.println();
+  Serial.print("dumpRootCert:   Not After: ");
+  dumpDate(&entry->strExpDate);
+  Serial.println();
+  Serial.println();
+
+
+  const tstrRootCertPubKeyInfo *pubKey = &entry->strPubKey;
+  bool isRSA = pubKey->u32PubKeyType == ROOT_CERT_PUBKEY_RSA;
+  
+  Serial.print("dumpRootCert: pubKey type is "); Serial.println(isRSA ? "RSA" : "ECDSA");
+  const uint8 *keyMem = (const uint8 *) (((const void*)entry) + sizeof(tstrRootCertEntryHeader));
+  if (isRSA) {
+    const tstrRootCertRsaKeyInfo *info = &pubKey->strRsaKeyInfo;
+    uint16 nSz = info->u16NSz;
+    uint16 eSz = info->u16ESz;
+    Serial.print("dumpRootCert: nSz: "); Serial.println(nSz);
+    Serial.print("dumpRootCert: eSz: "); Serial.println(eSz);
+
+    Serial.println("---begin pubkey"); 
+    dumpBuffer(keyMem-1, nSz+1);
+    Serial.println("---end");
+
+    uint8 exponent2 = keyMem[nSz];
+    uint8 exponent1 = keyMem[nSz+1];
+    uint8 exponent0 = keyMem[nSz+2];
+    uint32 exponent = (exponent2 << 16) + (exponent1 << 8) + exponent0;
+    Serial.print("dumpRootCert: PubKey Exponent: "); Serial.println(exponent);
+    
+  } else {
+    uint16 keyMemSz = 0;
+    const tstrRootCertEcdsaKeyInfo *info = &pubKey->strEcsdaKeyInfo;
+    uint16 curveID = info->u16CurveID;
+    uint16 keySz = info->u16KeySz;
+    Serial.print("dumpRootCert: CurveID: "); Serial.println(curveID);
+    keyMemSz = keySz * 2;
+
+    Serial.println("---begin key"); 
+    dumpBuffer(keyMem, keyMemSz);
+    Serial.println("---end");
+  }
+
   Serial.println();
 }
 
@@ -152,7 +207,7 @@ void dumpRootCerts(const uint8 *certMem)
 		   (WORD_ALIGN(pstrKey->strEcsdaKeyInfo.u16KeySz) * 2);
     }
 
-    dumpRootCertEntry((const tstrRootCertEntryHeader*)((const void*)&certMem[offset]), idx);
+    dumpRootCert((const tstrRootCertEntryHeader *)((const void*)&certMem[offset]), idx);
 
     idx++;
     if (idx == nStoredCerts) {
