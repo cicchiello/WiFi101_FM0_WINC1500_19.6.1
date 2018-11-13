@@ -1,4 +1,4 @@
-= Customized WiFi library for the Adafruit Feather M0+ WINC1500 =
+= Customized WiFi101 library for the Adafruit Feather M0+ WINC1500 =
 
 GOAL: upgrade the *ATWINC1500* (B version) from firmware version *19.4.4* to *19.6.1*, and customize the *WiFi101* library to expose the newly supported *WPA2 Enterprise EAP* (several flavors) authentication functionality.
 
@@ -36,12 +36,20 @@ A quick check with CheckWiFi101FirmwareVersion confirms that took.  Now, on to t
 
 Unfortunately, I discovered that the plugin doesn't properly recognize my particular hardware, so it wouldn't offer an upgrade to 19.6.1, even after ensuring that it had a properly arranged 19.6.1 subdirectory.  In fact, it didn't offer any of the intermediate upgrades available, either.  Since it didn't recognize my hardware, it just defaulted to offering 19.4.4.  To get past this without modifying the plugin itself, I simply placed the appropriate binary (19.6.1's m2m_aio_3a0.bin) in the 19.4.4 subdirectory, and uploaded that.  A quick check with the CheckWiFi101FirmwareVersion sketch confirmed success!
 
-The Arduino library work started with the Adafruit_WINC1500 library, as I had working code based on it.  I proceeded to replace the several Atmel-derived driver directories with the same set of directories from the ASF package.
 
 
-== Characterizing Changes ===
+== Host (Arduino) library porting ==
 
-Most files are identical to either the analogous WiFi101 0.15.2 file, or the Microchip 16.9.1 driver file.  Most of the places where there is some divergence involves earlier customizations of the WiFi101 driver files for the Android environment.  Most of those customizations have been ported forward to the same 16.9.1 files.
+The Arduino library work started with the old Adafruit_WINC1500 library, as I had working code based on it.  I proceeded to replace the several Atmel-derived driver directories with the same set of directories from the ASF package, then debugged until I had things working.
+
+I then proceeded to get a copy of the latest WiFi101 and merged and forward-porting to that.  For the most part, I'm left with code that you will find in either the WiFi101 0.15.2 or the driver libraries of the ASF package 3.42.0.1279.  I believe this approximates the normal process of updating the WiFi101 library to a new or updated wifi hardware.
+
+WARNING: I cannot submit this to Arduino *as* an updated WiFi101 library, yet, as there is significant functionality that I cannot test.
+
+
+== Characterizing Changes ==
+
+Most files are identical to either the analogous WiFi101 0.15.2 file, or the Microchip 16.9.1 driver file.  Most of the places where there is some divergence involves earlier customizations of the WiFi101 driver files for the Arduino environment.  Most of those customizations have been ported forward to the same 16.9.1 files.
 
 Files changed a lot (perhaps more than necessary?): 
 
