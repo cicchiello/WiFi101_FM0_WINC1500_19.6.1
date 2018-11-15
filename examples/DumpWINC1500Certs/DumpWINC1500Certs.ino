@@ -23,6 +23,65 @@
 #include <crypto.h>
 
 
+
+typedef struct{
+	uint8	au8StartPattern[ROOT_CERT_FLASH_START_PATTERN_LENGTH];
+	uint32	u32nCerts;
+} RootCertFlashHeader;
+
+
+typedef struct{
+	uint8   timebuf[21];
+} SystemTimeV0;
+
+
+typedef struct{
+	uint16	u16Year;
+	uint8	u8Month;
+	uint8	u8Day;
+	uint8	u8Hour;
+	uint8	u8Minute;
+	uint8	u8Second;
+	uint8	__PAD8__;
+} SystemTimeV1;
+
+
+typedef struct{
+	uint32	u32PubKeyType;
+	union{
+		tstrRootCertRsaKeyInfo		strRsaKeyInfo;
+		tstrRootCertEcdsaKeyInfo	strEcsdaKeyInfo;
+	};
+} RootCertPubKeyInfoV0;
+
+
+typedef struct{
+	uint32	u32PubKeyType;
+	union{
+		tstrRootCertRsaKeyInfo		strRsaKeyInfo;
+		tstrRootCertEcdsaKeyInfo	strEcsdaKeyInfo;
+	};
+} RootCertPubKeyInfoV1;
+
+
+typedef struct{
+	uint8				au8SHA1NameHash[CRYPTO_SHA1_DIGEST_SIZE];
+	uint16				modulusLen;
+	uint16				exponentLen;
+	SystemTimeV0			strStartDate;
+	SystemTimeV0			strExpDate;
+} RootCertEntryHeaderV0;
+
+
+typedef struct{
+	uint8				au8SHA1NameHash[CRYPTO_SHA1_DIGEST_SIZE];
+	SystemTimeV1			strStartDate;
+	SystemTimeV1			strExpDate;
+	RootCertPubKeyInfoV1		strPubKey;
+} RootCertEntryHeaderV1;
+
+
+
 void setup() {
 #ifdef ADAFRUIT_FEATHER_M0
   WiFi.setPins(8,7,4,2);
@@ -49,7 +108,8 @@ void setup() {
 
 typedef enum dumpStateEnum {
   DUMP_INIT = 0,
-  DUMP_NEXT,
+  DUMP_NEXTV0,
+  DUMP_NEXTV1,
   DUMP_DONE
 } DumpState;
 
@@ -108,7 +168,13 @@ void dumpBuffer(const uint8 *ptr, const uint16 len)
 }
 
 
-void dumpDate(const tstrSystemTime *d)
+void dumpDateV0(const SystemTimeV0 *d)
+{
+  dumpBuffer((uint8*)d, 21); // can't make out what this is yet...
+}
+
+
+void dumpDateV1(const SystemTimeV1 *d)
 {
   Serial.print(d->u8Month);
   Serial.print(" ");
@@ -118,38 +184,80 @@ void dumpDate(const tstrSystemTime *d)
 }
 
 
-void dumpRootCert(const tstrRootCertEntryHeader *entry, uint8 idx)
+void dumpRootCertV0(const RootCertEntryHeaderV0 *entry, uint8 idx)
 {
   Serial.println();
   
-  Serial.print("dumpRootCert: certificate #"); Serial.println(idx);
+  Serial.print("dumpRootCertV0: certificate #"); Serial.println(idx);
   
   const uint8 *pNameHash = &entry->au8SHA1NameHash[0];
-  Serial.println("dumpRootCert: Name Hash:");
+  Serial.println("dumpRootCertV0: Name Hash:");
   dumpBuffer(pNameHash, CRYPTO_SHA1_DIGEST_SIZE);
   Serial.println();
 
-  Serial.println("dumpRootCert: Validity");
-  Serial.print("dumpRootCert:   Not Before: ");
-  dumpDate(&entry->strStartDate);
+  Serial.println("dumpRootCertV0: Validity");
+  Serial.println("dumpRootCertV0:   Not Before: ");
+  Serial.println("---begin date"); 
+  dumpDateV0(&entry->strStartDate);
+  Serial.println("---end");
   Serial.println();
-  Serial.print("dumpRootCert:   Not After: ");
-  dumpDate(&entry->strExpDate);
+  Serial.println("dumpRootCertV0:   Not After: ");
+  Serial.println("---begin date"); 
+  dumpDateV0(&entry->strExpDate);
+  Serial.println("---end");
+  Serial.println();
+  Serial.println();
+
+  uint8 *mod = (uint8*) entry + sizeof(RootCertEntryHeaderV0);
+
+  Serial.print("DumpRootCertV0: pubkey len: "); Serial.println(entry->modulusLen);
+  Serial.println("---begin pubkey"); 
+  dumpBuffer(mod, entry->modulusLen);
+  Serial.println("---end");
+
+  uint8 *exp = mod + entry->modulusLen;
+  uint8 exponent2 = exp[0];
+  uint8 exponent1 = exp[1];
+  uint8 exponent0 = exp[2];
+  uint32 exponent = (exponent2 << 16) + (exponent1 << 8) + exponent0;
+  
+  Serial.print("DumpRootCertV0: exponent len: "); Serial.println(entry->exponentLen);
+  Serial.print("dumpRootCertV1: PubKey Exponent: "); Serial.println(exponent);
+}
+
+
+void dumpRootCertV1(const RootCertEntryHeaderV1 *entry, uint8 idx)
+{
+  Serial.println();
+  
+  Serial.print("dumpRootCertV1: certificate #"); Serial.println(idx);
+  
+  const uint8 *pNameHash = &entry->au8SHA1NameHash[0];
+  Serial.println("dumpRootCertV1: Name Hash:");
+  dumpBuffer(pNameHash, CRYPTO_SHA1_DIGEST_SIZE);
+  Serial.println();
+
+  Serial.println("dumpRootCertV1: Validity");
+  Serial.print("dumpRootCertV1:   Not Before: ");
+  dumpDateV1(&entry->strStartDate);
+  Serial.println();
+  Serial.print("dumpRootCertV1:   Not After: ");
+  dumpDateV1(&entry->strExpDate);
   Serial.println();
   Serial.println();
 
 
-  const tstrRootCertPubKeyInfo *pubKey = &entry->strPubKey;
+  const RootCertPubKeyInfoV1 *pubKey = &entry->strPubKey;
   bool isRSA = pubKey->u32PubKeyType == ROOT_CERT_PUBKEY_RSA;
   
-  Serial.print("dumpRootCert: pubKey type is "); Serial.println(isRSA ? "RSA" : "ECDSA");
-  const uint8 *keyMem = (const uint8 *) (((const void*)entry) + sizeof(tstrRootCertEntryHeader));
+  Serial.print("dumpRootCertV1: pubKey type is "); Serial.println(isRSA ? "RSA" : "ECDSA");
+  const uint8 *keyMem = (const uint8 *) (((const void*)entry) + sizeof(RootCertEntryHeaderV1));
   if (isRSA) {
     const tstrRootCertRsaKeyInfo *info = &pubKey->strRsaKeyInfo;
     uint16 nSz = info->u16NSz;
     uint16 eSz = info->u16ESz;
-    Serial.print("dumpRootCert: nSz: "); Serial.println(nSz);
-    Serial.print("dumpRootCert: eSz: "); Serial.println(eSz);
+    Serial.print("dumpRootCertV1: nSz: "); Serial.println(nSz);
+    Serial.print("dumpRootCertV1: eSz: "); Serial.println(eSz);
 
     Serial.println("---begin pubkey"); 
     dumpBuffer(keyMem-1, nSz+1);
@@ -159,14 +267,14 @@ void dumpRootCert(const tstrRootCertEntryHeader *entry, uint8 idx)
     uint8 exponent1 = keyMem[nSz+1];
     uint8 exponent0 = keyMem[nSz+2];
     uint32 exponent = (exponent2 << 16) + (exponent1 << 8) + exponent0;
-    Serial.print("dumpRootCert: PubKey Exponent: "); Serial.println(exponent);
+    Serial.print("dumpRootCertV1: PubKey Exponent: "); Serial.println(exponent);
     
   } else {
     uint16 keyMemSz = 0;
     const tstrRootCertEcdsaKeyInfo *info = &pubKey->strEcsdaKeyInfo;
     uint16 curveID = info->u16CurveID;
     uint16 keySz = info->u16KeySz;
-    Serial.print("dumpRootCert: CurveID: "); Serial.println(curveID);
+    Serial.print("dumpRootCertV1: CurveID: "); Serial.println(curveID);
     keyMemSz = keySz * 2;
 
     Serial.println("---begin key"); 
@@ -178,36 +286,75 @@ void dumpRootCert(const tstrRootCertEntryHeader *entry, uint8 idx)
 }
 
 
+static uint8 V0[] = ROOT_CERT_FLASH_START_PATTERN_V0;
+static uint8 V1[] = ROOT_CERT_FLASH_START_PATTERN;
+
+static int schemaVersion = -1;
+
 void dumpRootCerts(const uint8 *certMem)
 {
   static uint8 idx = 0;
   static uint32 nStoredCerts = 0;
   
-  const tstrRootCertFlashHeader *pstrRootFlashHdr = (const tstrRootCertFlashHeader*)((const void *)certMem);
+  const RootCertFlashHeader *rootFlashHdr = (const RootCertFlashHeader*)((const void *)certMem);
     
   switch (dstate) {
   case DUMP_INIT: {
     memset((void*)certMem, 0, M2M_TLS_ROOTCER_FLASH_SIZE);
     programmer_read_root_cert(certMem);
-    nStoredCerts = pstrRootFlashHdr->u32nCerts;
+    
+    if (memcmp(&rootFlashHdr->au8StartPattern[0], V0, ROOT_CERT_FLASH_START_PATTERN_LENGTH) == 0) {
+      schemaVersion = 0;
+      Serial.println("Root Certificate header version 0 detected");
+    } else if (memcmp(&rootFlashHdr->au8StartPattern[0], V1, ROOT_CERT_FLASH_START_PATTERN_LENGTH) == 0) {
+      Serial.println("Root Certificate header version 1 detected");
+      schemaVersion = 1;
+    } else {
+      Serial.println("Unrecognized Root Certification header version");
+    }
+    Serial.println();
+    
+    nStoredCerts = rootFlashHdr->u32nCerts;
     Serial.print("There are "); Serial.print(nStoredCerts); Serial.println(" Root Certificates");
-
-    dstate = (nStoredCerts == 0) ? DUMP_DONE : DUMP_NEXT;
+    dstate = (nStoredCerts == 0) ? DUMP_DONE : (schemaVersion == 0 ? DUMP_NEXTV0 : DUMP_NEXTV1);
     idx = 0;
   }
     break;
-  case DUMP_NEXT: {
-    uint32 offset = sizeof(tstrRootCertFlashHeader);
+    
+  case DUMP_NEXTV0: {
+    uint32 offset = sizeof(RootCertFlashHeader);
     for (uint8 i = 0; i < idx; i++) {
-      const tstrRootCertEntryHeader *pstrEntryHdr = (const tstrRootCertEntryHeader*)((const void *)&certMem[offset]);
-      const tstrRootCertPubKeyInfo *pstrKey = &pstrEntryHdr->strPubKey;
-      offset += sizeof(tstrRootCertEntryHeader);
+      const RootCertEntryHeaderV0 *pstrEntryHdr = (const RootCertEntryHeaderV0*)((const void *)&certMem[offset]);
+      uint16 modulusLen = pstrEntryHdr->modulusLen;
+      uint16 exponentLen = pstrEntryHdr->exponentLen;
+      offset += sizeof(RootCertEntryHeaderV0);
+      offset += modulusLen + exponentLen;
+      while (offset % 4 != 0)
+        offset++;
+    }
+
+    dumpRootCertV0((const RootCertEntryHeaderV0 *)((const void*)&certMem[offset]), idx);
+
+    idx++;
+    if (idx == nStoredCerts) {
+      // done dumping
+      dstate = DUMP_DONE;
+    }
+  }
+    break;
+    
+  case DUMP_NEXTV1: {
+    uint32 offset = sizeof(RootCertFlashHeader);
+    for (uint8 i = 0; i < idx; i++) {
+      const RootCertEntryHeaderV1 *pstrEntryHdr = (const RootCertEntryHeaderV1*)((const void *)&certMem[offset]);
+      const RootCertPubKeyInfoV1 *pstrKey = &pstrEntryHdr->strPubKey;
+      offset += sizeof(RootCertEntryHeaderV1);
       offset += (pstrKey->u32PubKeyType == ROOT_CERT_PUBKEY_RSA) ? 
                    (WORD_ALIGN(pstrKey->strRsaKeyInfo.u16NSz) + WORD_ALIGN(pstrKey->strRsaKeyInfo.u16ESz)) :
 		   (WORD_ALIGN(pstrKey->strEcsdaKeyInfo.u16KeySz) * 2);
     }
 
-    dumpRootCert((const tstrRootCertEntryHeader *)((const void*)&certMem[offset]), idx);
+    dumpRootCertV1((const RootCertEntryHeaderV1 *)((const void*)&certMem[offset]), idx);
 
     idx++;
     if (idx == nStoredCerts) {
