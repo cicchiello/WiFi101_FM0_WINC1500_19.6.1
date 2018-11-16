@@ -238,9 +238,6 @@ int dumpRootCerts(const uint8 *certMem)
     
   switch (dstate) {
   case DUMP_INIT: {
-    memset((void*)certMem, 0, M2M_TLS_ROOTCER_FLASH_SIZE);
-    programmer_read_root_cert(certMem);
-    
     if (memcmp(&rootFlashHdr->au8StartPattern[0], V0, ROOT_CERT_FLASH_START_PATTERN_LENGTH) == 0) {
       schemaVersion = 0;
       Serial.println("Root Certificate header version 0 detected");

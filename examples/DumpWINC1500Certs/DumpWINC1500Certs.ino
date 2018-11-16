@@ -19,8 +19,11 @@
 */
 
 #include <WiFi101.h>
-#include <utility/DumpCerts.h>
+#include "utility/DumpCerts.h"
+#include "utility/programmer.h"
 
+
+static uint8 * buffer;
 
 void setup() {
 #ifdef ADAFRUIT_FEATHER_M0
@@ -40,11 +43,17 @@ void setup() {
     Serial.println("Unable to initialize bus, Press RESET button to try again.");
     while(1);
   }
+
+
+  buffer = CertificateFlashBufferSingleton();
+  
+  /* Read the entire Root Certificate section from the WINC1500 flash */
+  memset((void*)buffer, 0, M2M_TLS_ROOTCER_FLASH_SIZE);
+  programmer_read_root_cert(buffer);
 }
 
 
 void loop() {
-  uint8 *buffer = CertificateFlashBufferSingleton();
   int shouldContinue = dumpRootCerts(buffer);
   if (!shouldContinue) {
      Serial.println("Done");
