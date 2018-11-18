@@ -3,3 +3,6 @@ arduino_secrets.h
 # emacs artifacts
 *#
 *~
+
+# java artifacts
+*.class

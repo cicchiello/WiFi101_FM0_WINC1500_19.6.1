@@ -57,9 +57,9 @@
 
    The associated .cpp file should be placed in the 
 */
-#include "utility/certs/NMARoot_certificate.h"
-#include "utility/certs/GlobalSign_certificate.h"
-
+#include "utility/certs/NMA_Root_winc1500cert.h"
+#include "utility/certs/GlobalSign_winc1500cert.h"
+#include "utility/certs/ziggo_winc1500cert.h"
 
 
 // returns 0 on failure; len of image on success
@@ -165,8 +165,9 @@ void setup() {
 
   /* Setup Certificate array */
   const Certificate *certificates[] = {
-    NMARoot_getCertificate(),
+    NMA_Root_getCertificate(),
     GlobalSign_getCertificate(),
+    ziggo_getCertificate(),
     0 // make sure there's one extra entry of 0
   };
 

@@ -1,0 +1,31 @@
+#!/bin/bash
+
+function usage() {
+    echo "Usage: "${0}" <der-cert-file> <output-dir>"
+    echo ""
+    echo "Where: <der-cert-file>   is a DER-encoded certificate file.  Please make sure "
+    echo "                         there are no spaces in the base filename"
+    echo "       <output-dir>      the directory where name_winc1500cert.{h,cpp} will be placed"
+    echo ""
+    exit -1
+}
+
+if [ "${1}" == "" ]
+then
+    usage
+fi
+if [ "${2}" == "" ]
+then
+    usage
+fi
+
+
+rootdir=$(dirname "${0}")
+src="${rootdir}/../java/src"
+libs="${rootdir}/../java/libs"
+#echo "rootdir: ${rootdir}"
+#echo "src: ${src}"
+#echo "libs: ${libs}"
+
+javac -classpath ${libs}/bcprov-jdk15on-160.jar ${src}/com/jfcenterprises/wifi101/GenWINC1500CertCPP.java
+java -classpath ${libs}/bcprov-jdk15on-160.jar:${src} com.jfcenterprises.wifi101.GenWINC1500CertCPP -c ${1} -odir "${2}"
