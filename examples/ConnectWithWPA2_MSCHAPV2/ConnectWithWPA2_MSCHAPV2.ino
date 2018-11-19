@@ -18,10 +18,6 @@
 
 #include "arduino_secrets.h" 
 ///////please enter your sensitive data in the Secret tab/arduino_secrets.h
-//#define SECRET_SSID "Ziggo"
-//#define SECRET_USER_NAME "JEROEN188"
-//#define SECRET_PWD "Schatje5000!"
-
 static const char *MAIN_WLAN_SSID = SECRET_SSID;
 static const char *MAIN_WLAN_802_1X_USR_NAME = SECRET_USER_NAME;
 static const char *MAIN_WLAN_802_1X_PWD = SECRET_PWD;
