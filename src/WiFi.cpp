@@ -69,17 +69,21 @@ void WiFiClass::handleEvent(uint8_t u8MsgType, void *pvMsg)
 			tstrM2mWifiStateChanged *pstrWifiState = (tstrM2mWifiStateChanged *)pvMsg;
 			if (pstrWifiState->u8CurrState == M2M_WIFI_CONNECTED) {
 				//SERIAL_PORT_MONITOR.println("wifi_cb: M2M_WIFI_RESP_CON_STATE_CHANGED: CONNECTED");
+Serial.print("M2M_WIFI_RESP_CON_STATE_CHANGED; ");
+Serial.print("_mode: "); Serial.print(_mode); Serial.print("; _dhcp: "); Serial.println(_dhcp);
 				if (_mode == WL_STA_MODE && !_dhcp) {
 					_status = WL_CONNECTED;
 
 #ifdef CONF_PERIPH
 					// WiFi led ON.
+Serial.println("Turning LED ON");
 					m2m_periph_gpio_set_val(M2M_PERIPH_GPIO15, 0);
 #endif
 				} else if (_mode == WL_AP_MODE) {
 					_status = WL_AP_CONNECTED;
 				}
 			} else if (pstrWifiState->u8CurrState == M2M_WIFI_DISCONNECTED) {
+Serial.println("M2M_WIFI_DISCONNECTED");			  
 				//SERIAL_PORT_MONITOR.println("wifi_cb: M2M_WIFI_RESP_CON_STATE_CHANGED: DISCONNECTED");
 				if (_mode == WL_STA_MODE) {
 					_status = WL_DISCONNECTED;
@@ -97,6 +101,7 @@ void WiFiClass::handleEvent(uint8_t u8MsgType, void *pvMsg)
 					_status = WL_AP_LISTENING;
 				}
 #ifdef CONF_PERIPH
+Serial.println("Turning LED OFF");
 				// WiFi led OFF (rev A then rev B).
 				m2m_periph_gpio_set_val(M2M_PERIPH_GPIO15, 1);
 				m2m_periph_gpio_set_val(M2M_PERIPH_GPIO4, 1);
@@ -107,6 +112,7 @@ void WiFiClass::handleEvent(uint8_t u8MsgType, void *pvMsg)
 
 		case M2M_WIFI_REQ_DHCP_CONF:
 		{
+Serial.println("M2M_WIFI_REQ_DHCP_CONF");
 			if (_mode == WL_STA_MODE) {
 				tstrM2MIPConfig *pstrIPCfg = (tstrM2MIPConfig *)pvMsg;
 				_localip = pstrIPCfg->u32StaticIP;
@@ -437,10 +443,10 @@ uint8_t WiFiClass::begin(const tstrNetworkId *network, const tstrAuth1xMschap2 *
 		_submask = 0;
 		_gateway = 0;
 	}
-	int stat = 0;
 	tstrNetworkId *nonConstNetwork = (tstrNetworkId*) network;
 	tstrAuth1xMschap2 *nonConstCredentials = (tstrAuth1xMschap2*) credentials;
-	if (stat = m2m_wifi_connect_1x_mschap2( WIFI_CRED_SAVE_ENCRYPTED, nonConstNetwork, nonConstCredentials) < 0) {
+	sint8 stat = 0;
+	if ((stat = m2m_wifi_connect_1x_mschap2( WIFI_CRED_SAVE_ENCRYPTED, nonConstNetwork, nonConstCredentials)) < 0) {
 		Serial.print("Connect failed with status: ");
 		Serial.println(stat);
 		_status = WL_CONNECT_FAILED;
@@ -460,8 +466,12 @@ uint8_t WiFiClass::begin(const tstrNetworkId *network, const tstrAuth1xMschap2 *
 		Serial.print("Failed while waiting for connection with status: ");
 		Serial.println(_status);
 		_mode = WL_RESET_MODE;
+	} else if (_status == WL_CONNECTED) {
+Serial.println("Connected!");
 	} else {
-		Serial.println("Connected!");
+Serial.print("Giving up; not connected: _status: ");
+Serial.println(_status);
+		_mode = WL_RESET_MODE;
 	}
 
 	memset(_ssid, 0, M2M_MAX_SSID_LEN);
