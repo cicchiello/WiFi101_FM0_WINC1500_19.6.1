@@ -425,6 +425,50 @@ uint8_t WiFiClass::begin(const char *ssid, const tstr1xAuthCredentials *auth)
 	return startConnect(ssid, M2M_WIFI_SEC_802_1X, auth);
 }
 
+uint8_t WiFiClass::begin(const tstrNetworkId *network, const tstrAuth1xMschap2 *credentials)
+{
+	if (!_init) {
+		init();
+	}
+	
+	// Connect to router:
+	if (_dhcp) {
+		_localip = 0;
+		_submask = 0;
+		_gateway = 0;
+	}
+	int stat = 0;
+	tstrNetworkId *nonConstNetwork = (tstrNetworkId*) network;
+	tstrAuth1xMschap2 *nonConstCredentials = (tstrAuth1xMschap2*) credentials;
+	if (stat = m2m_wifi_connect_1x_mschap2( WIFI_CRED_SAVE_ENCRYPTED, nonConstNetwork, nonConstCredentials) < 0) {
+		Serial.print("Connect failed with status: ");
+		Serial.println(stat);
+		_status = WL_CONNECT_FAILED;
+		return _status;
+	}
+	_status = WL_IDLE_STATUS;
+	_mode = WL_STA_MODE;
+
+	// Wait for connection or timeout:
+	unsigned long start = millis();
+	while (!(_status & WL_CONNECTED) &&
+		!(_status & WL_DISCONNECTED) &&
+		millis() - start < 60000) {
+		m2m_wifi_handle_events(NULL);
+	}
+	if (!(_status & WL_CONNECTED)) {
+		Serial.print("Failed while waiting for connection with status: ");
+		Serial.println(_status);
+		_mode = WL_RESET_MODE;
+	} else {
+		Serial.println("Connected!");
+	}
+
+	memset(_ssid, 0, M2M_MAX_SSID_LEN);
+	memcpy(_ssid, network->pu8Ssid, network->u8SsidLen);
+	return _status;
+}
+
 uint8_t WiFiClass::startConnect(const char *ssid, uint8_t u8SecType, const void *pvAuthInfo)
 {
 	if (!_init) {
